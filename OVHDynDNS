@@ -1,44 +1,42 @@
-:global ovhddnsuser "<OVH DynDNS USER>"
-:global ovhddnspass "<OVH DynDNS PASS>"
-:global theinterface "<INTERFACE THAT HAS YOUR PUBLIC IP>"
-:global ovhddnshost "<OVHDynDNS HOSTNAME>"
-:global ipddns [:resolve $ovhddnshost]
-:global ipfresh [ /ip address get [/ip address find interface=$theinterface ] address ]
+:local ovhddnsuser "<OVH DynDNS USER>"
+:local ovhddnspass "<OVH DynDNS PASS>"
+:local theinterface "<INTERFACE THAT HAS YOUR PUBLIC IP>"
+:local ovhddnshost "<OVHDynDNS HOSTNAME>"
+:local ipddns [:resolve $ovhddnshost]
+:local ipfresh [/ip address get [/ip address find interface=$theinterface] address]
+
 :if ([ :typeof $ipfresh ] = nil ) do={
-   :log info ("OVHDynDNS: NO IP address on $theinterface")
+    :log info ("OVHDynDNS: NO IP address on $theinterface")
 } else={
-   :for i from=( [:len $ipfresh] - 1) to=0 do={ 
-      :if ( [:pick $ipfresh $i] = "/") do={ 
-    :set ipfresh [:pick $ipfresh 0 $i]
-      } 
+    :set ipfresh [:pick $ipfresh 0 [:find $ipfresh "/" -1]]
 }
- 
+
 :if ($ipddns != $ipfresh) do={
-   :log info ("OVHDynDNS: $ovhddnshost DNS RECORD IP = $ipddns")
-   :log info ("OVHDynDNS: $theinterface CURRENT IP = $ipfresh")
-   :log info ("OVHDynDNS: UPDATING $ovhddnshost -> $ipfresh")
-   :global str "nic/update?system=dyndns&hostname=$ovhddnshost&myip=$ipfresh&wildcard=OFF&backmx=NO&mx=NOCHG"
+    :log info ("OVHDynDNS: $ovhddnshost DNS RECORD IP = $ipddns")
+    :log info ("OVHDynDNS: $theinterface CURRENT IP = $ipfresh")
+    :log info ("OVHDynDNS: UPDATING $ovhddnshost -> $ipfresh")
+    :local url "https://www.ovh.com/nic/update\?system=dyndns&hostname=$ovhddnshost&myip=$ipfresh"
 
-   # DEBUG fetch command
-   #:log info ("OVHDynDNS: /tool fetch address=www.ovh.com host=www.ovh.com src-path=$str mode=https user=$ovhddnsuser password=$ovhddnspass dst-path=(\"/OVHDynDNS.$ovhddnshost\")")
-   /tool fetch address=www.ovh.com host=www.ovh.com src-path=$str mode=https user=$ovhddnsuser password=$ovhddnspass dst-path=("/OVHDynDNS.".$ovhddnshost)
-   :delay 1
+    # DEBUG fetch command
+    #:log info ("OVHDynDNS: /tool fetch url=$str mode=https user=$ovhddnsuser password=$ovhddnspass dst-path=(\"/OVHDynDNS.$ovhddnshost\")")
+    /tool fetch url=$url mode=https user=$ovhddnsuser password=$ovhddnspass dst-path=("/OVHDynDNS.".$ovhddnshost)
+    :delay 1
 
-   :global ovhresult [/file get "OVHDynDNS.$ovhddnshost" contents]
-   :log info "OVHDynDNS: OVH response: $ovhresult"
+    :local ovhresult [/file get "OVHDynDNS.$ovhddnshost" contents]
+    #:log info "OVHDynDNS: OVH response: $ovhresult"
 
-   :global str [/file find name="OVHDynDNS.$ovhddnshost"]
-   /file remove $str
+    :local str [/file find name="OVHDynDNS.$ovhddnshost"]
+    /file remove $str
    
-   :if ($ovhresult = "good $ipfresh\n" ) do={
-      :log info "OVHDynDNS: SUCCESS"
-   } else={
-       :log info "OVHDynDNS: FAILED"
-   }
-
-   :global ipddns $ipfresh
-   :log info "OVHDynDNS: $ovhddnshost DNS RECORD = $ipfresh!"
+    :if ($ovhresult = "good $ipfresh\n" ) do={
+        :log info "OVHDynDNS: SUCCESS"
     } else={
-     :log info "OVHDynDNS: We good!"
+        :log info "OVHDynDNS: FAILED"
     }
+
+    #:set ipddns $ipfresh
+    #:log info "OVHDynDNS: $ovhddnshost DNS RECORD = $ipfresh!"
+} else={
+    :log info "OVHDynDNS: We good!"
 }
+
